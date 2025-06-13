@@ -46,7 +46,7 @@ MCP-Server
 │   ├── tools.py
 │   ├── requirements.txt
 │   ├── pyproject.toml
-│   ├── run_controller.sh               # Collaborate three agents (Developing)
+│   ├── run_controller.sh               # Collaborate three agents 
 ├── src/                                # Ui for vscode view and webview
 │   ├── tests/                          
 |   |   ├── extension.test.ts   
