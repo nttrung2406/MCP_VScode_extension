@@ -1,0 +1,27 @@
+[project]
+name = "mcp-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiohttp>=3.12.11",
+    "asyncio>=3.4.3",
+    "crewai>=0.126.0",
+    "fastapi>=0.115.9",
+    "fastmcp>=2.7.1",
+    "httpx>=0.28.1",
+    "langchain-community>=0.3.25",
+    "langchain-core>=0.3.65",
+    "langchain-ollama>=0.3.3",
+    "mcp[cli]>=1.9.3",
+    "nest-asyncio>=1.6.0",
+    "ollama>=0.5.1",
+    "pydantic>=2.11.5",
+    "python-dotenv>=1.1.0",
+    "requests>=2.32.3",
+    "sse-starlette>=2.3.6",
+    "starlette>=0.45.3",
+    "typing>=3.10.0.0",
+    "uvicorn>=0.34.3",
+]

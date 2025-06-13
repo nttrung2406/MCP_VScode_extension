@@ -1,0 +1,82 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mcp_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - mcp_network
+
+  # 2. The Coding Agent Server
+  coding-server:
+    build:
+      context: .
+      dockerfile: Dockerfile 
+    container_name: mcp_coding_server
+    command: uv run /app/coding_agent/coding_server.py
+    ports:
+      - "8765:8765"
+    networks:
+      - mcp_network
+    depends_on:
+      - ollama
+    volumes:
+      - ../workspace:/app/mcp_workspace
+
+  # 3. The File Operations Agent Server
+  file-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp_file_server
+    command: uv run /app/file_agent/file_server.py
+    ports:
+      - "8766:8766" 
+    networks:
+      - mcp_network
+    volumes:
+      - ../workspace:/app/mcp_workspace 
+
+  # 4. The Git Agent Server
+  git-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp_git_server
+    command: uv run /app/git_agent/git_server.py
+    ports:
+      - "8767:8767"
+    networks:
+      - mcp_network
+    volumes:
+      - ../workspace:/app/mcp_workspace 
+
+  # 5. The CrewAI Agent Controller
+  agent-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp_agent_controller
+    # command: python /app/agent_controller.py
+    # stdin_open: true 
+    # tty: true       
+    command: uvicorn agent_controller:app --host 0.0.0.0 --port 8000    # Open for testing APi
+    ports: # Open for testing APi
+      - "8000:8000"
+    networks:
+      - mcp_network
+    depends_on:
+      - coding-server
+      - file-server
+      - git-server
+    volumes:
+      - ../workspace:/app/mcp_workspace  
+
+networks:
+  mcp_network:
+    driver: bridge
+
+volumes:
+  ollama_data:

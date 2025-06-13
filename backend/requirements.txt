@@ -1,0 +1,17 @@
+mcp
+mcp[cli]
+crewai
+langchain-ollama
+langchain-community
+langchain-core
+pydantic
+fastapi
+uvicorn
+fastmcp
+sse-starlette
+starlette
+requests
+httpx
+python-dotenv
+uvicorn[standard]
+langchain_google_genai
