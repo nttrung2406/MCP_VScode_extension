@@ -1,6 +1,5 @@
 mcp
 mcp[cli]
-crewai
 langchain-ollama
 langchain-community
 langchain-core
@@ -15,3 +14,8 @@ httpx
 python-dotenv
 uvicorn[standard]
 langchain_google_genai
+pyautogen[ollama]
+autogen-agentchat[gemini,retrievechat,lmm]
+ag2[ollama,gemini]
+google-genai
+google-generativeai

@@ -2,7 +2,7 @@
 set -e
 
 PORT=8765
-MODEL_NAME="qwen3:1.7b"
+MODEL_NAME="llama3.1:8b"
 MODEL_IMAGE="registry.ollama.ai/library/${MODEL_NAME}"
 CONTAINER_NAME="ollama"
 

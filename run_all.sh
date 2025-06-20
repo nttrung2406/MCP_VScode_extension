@@ -31,7 +31,6 @@ echo "--- Step 2: Verifying Backend Setup ---"
 if [ -f "backend/run_controller.sh" ]; then
   echo "Found backend run script at 'backend/run_controller.sh'."
   echo "The backend services will be started automatically by the extension."
-  sleep 5
   echo "✅ Backend is ready."
 else
   echo "❌ CRITICAL ERROR: Backend script 'backend/run_controller.sh' not found!"

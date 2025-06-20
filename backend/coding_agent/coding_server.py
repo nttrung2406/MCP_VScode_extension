@@ -1,51 +1,20 @@
 import re
-from pathlib import Path
-# from mcp.server.fastmcp import FastMCP
+import uvicorn
+import os
+import sys
 from fastmcp import FastMCP
-import requests
 from fastapi import FastAPI
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from mcp.server.sse import SseServerTransport
-import uvicorn
+from starlette.responses import Response
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from llm_choice.llm_client import FlexibleLLMClient
+
 
 mcp = FastMCP("Coding Assistant Server")
-OLLAMA_BASE_URL = "http://localhost:11434"
-CODER_MODEL = "qwen3:1.7b"
 
-class OllamaCodeHelper:
-    def __init__(self):
-        self.base_url = OLLAMA_BASE_URL
-        self.model = CODER_MODEL
-    
-    def generate_response(self, prompt: str, system_prompt: str = None) -> str:
-        """Generate response from Ollama"""
-        messages = []
-        
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        
-        messages.append({"role": "user", "content": prompt})
-        
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "temperature": 0.1, 
-                "top_p": 0.9
-            }
-        }
-        
-        try:
-            response = requests.post(f"{self.base_url}/api/chat", json=payload, timeout=60)
-            response.raise_for_status()
-            result = response.json()
-            return result.get("message", {}).get("content", "")
-        except Exception as e:
-            return f"Error communicating with Ollama: {str(e)}"
-
-code_helper = OllamaCodeHelper()
+code_helper = FlexibleLLMClient()
 
 def detect_language(code: str) -> str:
     """Detect programming language from code"""
@@ -300,15 +269,25 @@ def generate_documentation(code: str, doc_type: str = "api", language: str = "au
 
 transport = SseServerTransport("/mcp-messages/")
 
+
 async def handle_sse_handshake(request):
-    async with transport.connect_sse(
-        request.scope, request.receive, request._send
-    ) as (in_stream, out_stream):
-        await mcp._mcp_server.run(
-            in_stream,
-            out_stream,
-            mcp._mcp_server.create_initialization_options()
-        )
+    """
+    Handles the long-lived SSE connection.
+    It must return a Response object when the connection is closed.
+    """
+    try:
+        async with transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as (in_stream, out_stream):
+            await mcp._mcp_server.run(
+                in_stream,
+                out_stream,
+                mcp._mcp_server.create_initialization_options()
+            )
+    except Exception as e:
+        print(f"Error during SSE connection: {e}")
+    finally:
+        return Response(status_code=200, content="SSE connection closed.")
 
 sse_app = Starlette(
     routes=[
@@ -323,7 +302,6 @@ app.mount("/", sse_app)
 
 if __name__ == "__main__":
     print("\n=== MCP Code Assistant ===")
-    print(f"Using Ollama model: {CODER_MODEL}")
     print("Available tools:")
     print("- explain_code: Explain what code does")
     print("- fix_code_error: Fix code errors")

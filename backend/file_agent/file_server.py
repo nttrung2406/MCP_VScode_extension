@@ -1,25 +1,20 @@
-import json
-import re
-import ast
-import sys
-import traceback
-from typing import Dict, Any, List
-from pathlib import Path
-# from mcp.server.fastmcp import FastMCP
+import os
+import uvicorn
+import shutil
+
 from fastmcp import FastMCP
-import requests
 from fastapi import FastAPI
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from mcp.server.sse import SseServerTransport
-import uvicorn
-import shutil
+from pathlib import Path
+from starlette.responses import Response
+# from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("Filesystem Server")
 
-# Configure allowed base directory for security
-ALLOWED_BASE_DIR = Path.cwd() / "mcp_workspace"
-ALLOWED_BASE_DIR.mkdir(exist_ok=True)
+ALLOWED_BASE_DIR = Path(os.getenv("MCP_WORKSPACE_DIR", "/workspace")).resolve()
+ALLOWED_BASE_DIR.mkdir(parents=True, exist_ok=True)
 
 def validate_path(path: str) -> Path:
     """Validate and resolve path within allowed directory"""
@@ -40,21 +35,29 @@ def validate_path(path: str) -> Path:
 
 @mcp.tool("read_file")
 def read_file(path: str) -> str:
-    """Read contents of a file"""
+    """
+    Read the content of a file by name or relative path from the workspace.
+    If only the file name is given, it searches recursively under the workspace.
+    """
     try:
-        file_path = validate_path(path)
-        if not file_path.exists():
-            return f"Error: File not found: {path}"
-        
-        if not file_path.is_file():
-            return f"Error: Path is not a file: {path}"
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        return f"File content of {path}:\n{content}"
+        try:
+            file_path = validate_path(path)
+            if file_path.exists() and file_path.is_file():
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f"File content of {file_path}:\n{f.read()}"
+        except Exception:
+            pass 
+
+        matches = list(ALLOWED_BASE_DIR.rglob(path))
+        if not matches:
+            return f"Error: File named '{path}' not found in workspace."
+
+        selected = matches[0]
+        with open(selected, 'r', encoding='utf-8') as f:
+            return f"File content of {selected}:\n{f.read()}"
     except Exception as e:
-        return f"Error reading file {path}: {str(e)}"
+        return f"Error reading file '{path}': {str(e)}"
+
 
 @mcp.tool("write_file")
 def write_file(path: str, content: str) -> str:
@@ -71,6 +74,7 @@ def write_file(path: str, content: str) -> str:
         return f"Successfully wrote {len(content)} characters to {path}"
     except Exception as e:
         return f"Error writing file {path}: {str(e)}"
+    
 
 @mcp.tool("list_directory")
 def list_directory(path: str = ".") -> str:
@@ -196,19 +200,27 @@ def get_file_info(path: str) -> str:
 transport = SseServerTransport("/mcp-messages/")
 
 async def handle_sse_handshake(request):
-    async with transport.connect_sse(
-        request.scope, request.receive, request._send
-    ) as (in_stream, out_stream):
-        await mcp._mcp_server.run(
-            in_stream,
-            out_stream,
-            mcp._mcp_server.create_initialization_options()
-        )
+    """
+    Handles the long-lived SSE connection.
+    It must return a Response object when the connection is closed.
+    """
+    try:
+        async with transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as (in_stream, out_stream):
+            await mcp._mcp_server.run(
+                in_stream,
+                out_stream,
+                mcp._mcp_server.create_initialization_options()
+            )
+    except Exception as e:
+        print(f"Error during SSE connection: {e}")
+    finally:
+        return Response(status_code=200, content="SSE connection closed.")
 
 sse_app = Starlette(
     routes=[
         Route("/mcp-sse", handle_sse_handshake, methods=["GET"]),
-        
         Mount("/mcp-messages/", app=transport.handle_post_message)
     ]
 )

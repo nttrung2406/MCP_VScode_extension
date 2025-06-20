@@ -1,9 +1,10 @@
-import asyncio
-import sys
+import httpx
+import os
 from typing import List, Dict, Any
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-import httpx
+from dotenv import load_dotenv
+from pathlib import Path
 
 _orig_request = httpx.AsyncClient.request
 async def _patched_request(self, method, url, *args, **kwargs):
@@ -11,8 +12,15 @@ async def _patched_request(self, method, url, *args, **kwargs):
     return await _orig_request(self, method, url, *args, **kwargs)
 httpx.AsyncClient.request = _patched_request
 
+
+
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+MODEL = os.getenv("MODEL")
+
 class OllamaClient:
-    def __init__(self, model: str = "qwen3:1.7b", base_url: str = "http://localhost:11434"):
+    def __init__(self, model = MODEL, base_url: str = "http://localhost:11434"):
         self.model = model
         self.base_url = base_url
         self.client = httpx.AsyncClient(timeout=60.0)
@@ -76,7 +84,7 @@ class MCPFilesystemClient:
     # ==================================== Isolation agent testing ==============================================================
     
     def __init__(self, server_url="http://file-server:8766/mcp-sse"): # server_url: str = "http://localhost:8766/mcp-sse"
-        self.ollama = OllamaClient(model="qwen3:1.7b", base_url="http://ollama:11434")
+        self.ollama = OllamaClient(model=MODEL, base_url="http://ollama:11434")
         self.session = None
         self.available_tools = []
         self.server_url = server_url

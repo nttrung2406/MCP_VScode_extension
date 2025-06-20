@@ -2,12 +2,26 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: mcp_ollama
+    env_file:
+      - ./.env
+    environment:
+      - MODEL=${MODEL}
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+      - ./ollama_entrypoint.sh:/entrypoint.sh
     networks:
       - mcp_network
+    entrypoint: /entrypoint.sh
+    # deploy:  # GPU depoy
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
 
   # 2. The Coding Agent Server
   coding-server:
@@ -15,7 +29,10 @@ services:
       context: .
       dockerfile: Dockerfile 
     container_name: mcp_coding_server
-    command: uv run /app/coding_agent/coding_server.py
+    # command: uv run /app/coding_agent/coding_server.py
+    command: python /app/coding_agent/coding_server.py
+    environment:
+      - MCP_WORKSPACE_DIR=/workspace  
     ports:
       - "8765:8765"
     networks:
@@ -23,7 +40,8 @@ services:
     depends_on:
       - ollama
     volumes:
-      - ../workspace:/app/mcp_workspace
+      - .:/app
+      - /home/trungnt2/workspace:/workspace
 
   # 3. The File Operations Agent Server
   file-server:
@@ -31,13 +49,15 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: mcp_file_server
-    command: uv run /app/file_agent/file_server.py
+    # command: uv run /app/file_agent/file_server.py
+    command: python /app/file_agent/file_server.py
     ports:
       - "8766:8766" 
     networks:
       - mcp_network
     volumes:
-      - ../workspace:/app/mcp_workspace 
+      - .:/app
+      - /home/trungnt2/workspace:/workspace
 
   # 4. The Git Agent Server
   git-server:
@@ -45,34 +65,37 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: mcp_git_server
-    command: uv run /app/git_agent/git_server.py
+    # command: uv run /app/git_agent/git_server.py
+    command: python /app/git_agent/git_server.py
+    environment:
+      - MCP_WORKSPACE_DIR=/workspace    
     ports:
       - "8767:8767"
     networks:
       - mcp_network
     volumes:
-      - ../workspace:/app/mcp_workspace 
+      - .:/app
+      - /home/trungnt2/workspace:/workspace
 
-  # 5. The CrewAI Agent Controller
+  # 5. The Agent Controller
   agent-controller:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp_agent_controller
-    # command: python /app/agent_controller.py
-    # stdin_open: true 
-    # tty: true       
-    command: uvicorn agent_controller:app --host 0.0.0.0 --port 8000    # Open for testing APi
-    ports: # Open for testing APi
+    container_name: mcp_agent_controller   
+    command: uvicorn agent_controller:app --host 0.0.0.0 --port 8000 
+    ports: 
       - "8000:8000"
     networks:
       - mcp_network
     depends_on:
+      - ollama
       - coding-server
       - file-server
       - git-server
     volumes:
-      - ../workspace:/app/mcp_workspace  
+      - .:/app
+      - /home/trungnt2/workspace:/workspace
 
 networks:
   mcp_network:

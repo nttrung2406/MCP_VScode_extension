@@ -1,22 +1,22 @@
-
+import os
 import subprocess
+import uvicorn
+
 from pathlib import Path
 from typing import List, Dict, Any, Optional
-from pathlib import Path
 # from mcp.server.fastmcp import FastMCP
 from fastmcp import FastMCP
-import requests
 from fastapi import FastAPI
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from mcp.server.sse import SseServerTransport
-import uvicorn
+from starlette.responses import Response
 
 mcp = FastMCP("Git Server")
 
-ALLOWED_BASE_DIR = Path.cwd() / "git_workspace"
-ALLOWED_BASE_DIR.mkdir(exist_ok=True)
 
+ALLOWED_BASE_DIR = Path(os.getenv("MCP_WORKSPACE_DIR", "/workspace")).resolve()
+ALLOWED_BASE_DIR.mkdir(parents=True, exist_ok=True)
 def validate_path(path: str) -> Path:
     """Validate and resolve path within allowed directory"""
     try:
@@ -390,14 +390,23 @@ def git_config(action: str = "list", key: str = "", value: str = "", global_conf
 transport = SseServerTransport("/mcp-messages/")
 
 async def handle_sse_handshake(request):
-    async with transport.connect_sse(
-        request.scope, request.receive, request._send
-    ) as (in_stream, out_stream):
-        await mcp._mcp_server.run(
-            in_stream,
-            out_stream,
-            mcp._mcp_server.create_initialization_options()
-        )
+    """
+    Handles the long-lived SSE connection.
+    It must return a Response object when the connection is closed.
+    """
+    try:
+        async with transport.connect_sse(
+            request.scope, request.receive, request._send
+        ) as (in_stream, out_stream):
+            await mcp._mcp_server.run(
+                in_stream,
+                out_stream,
+                mcp._mcp_server.create_initialization_options()
+            )
+    except Exception as e:
+        print(f"Error during SSE connection: {e}")
+    finally:
+        return Response(status_code=200, content="SSE connection closed.")
 
 sse_app = Starlette(
     routes=[

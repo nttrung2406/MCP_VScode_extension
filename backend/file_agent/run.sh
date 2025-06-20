@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MODEL_NAME="qwen3:1.7b"
+MODEL_NAME="llama3.1:8b"
 MODEL_IMAGE="registry.ollama.ai/library/${MODEL_NAME}"
 CONTAINER_NAME="ollama"
 FILE_AGENT_PORT=8766
